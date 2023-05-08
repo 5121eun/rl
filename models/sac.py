@@ -11,7 +11,7 @@ class SAC:
     def __init__(self, env, nactions: int, act: nn.Module, act_opt: torch.optim, 
                  qcri1: nn.Module, qcri1_opt:torch.optim, 
                  qcri2: nn.Module, qcri2_opt:torch.optim, 
-                 n_buffer=10000, n_batchs=32, gamma = 0.99, alpha = 0.1, eps = 0.3, tau = 5e-3):
+                 n_buffer=10000, n_batchs=32, gamma = 0.99, alpha = 0.1, eps = 0.3, tau = 5e-3, target_entropy=None):
         
         self.env = env
         self.nactions = nactions
@@ -42,7 +42,11 @@ class SAC:
         self.log_alpha = torch.tensor(np.log(0.01))
         self.log_alpha.requires_grad = True
         self.log_alpha_opt = torch.optim.Adam([self.log_alpha], lr=0.001)
-        self.target_entorpy = - 1.0
+        
+        if target_entropy is None:
+            self.target_entropy = - nactions
+        else:
+            self.target_entropy = target_entropy
                 
     def train(self, n_epis, n_rollout, print_interval=20):
         env = self.env
