@@ -41,30 +41,36 @@ class TD3:
         self.eps = eps
         self.tau = tau
                 
-    def train(self, n_epis, n_rollout, print_interval=200):
+    def train(self, n_epis, n_epochs, n_rollout, n_update=20, print_interval=20):
         env = self.env
         
-        score = 0.0
         for epi in range(n_epis):
             s = env.reset()[0]
+            done = False
+            score = 0.0
 
-            for t in range(n_rollout):
-                a = self.get_action(s)
-                s_p, r, _, _, _ = env.step(a)
-                self.buffer.put((s, a, r/100, s_p))
-                env.render()
+            for epoch in range(n_epochs):
+                for t in range(n_rollout):
+                    a = self.get_action(s)
+                    s_p, r, done, _, _ = env.step(a)
+                    d_mask = 0.0 if done else 1.0
+                    self.buffer.put((s, a, r/100, d_mask, s_p))
+                    env.render()
+                    
+                    s = s_p
+                    score += r
+
+                    if done:
+                        break
                 
-                s = s_p
-                score += r
-            
-                if self.buffer.size() > self.n_batchs:
+                for t in range(n_update):
                     self.update_cri()
                     
                     if t % self.d == 0:
                         self.update_act()
             
-                if t % print_interval == 0 and t != 0:
-                    print(f"epi: {epi}, score: {score / print_interval}, n_buffer: {self.buffer.size()}")
+                if epoch % print_interval == 0 and epoch != 0:
+                    print(f"epoch: {epoch}, score: {score / print_interval}, n_buffer: {self.buffer.size()}")
                     score = 0.0
     
         
@@ -74,12 +80,12 @@ class TD3:
         return a.detach().numpy()
                 
     def update_cri(self):
-        s, a, r, s_p = self.buffer.sample(self.n_batchs)
+        s, a, r, d_mask, s_p = self.buffer.sample(self.n_batchs)
             
         eps = torch.clamp(torch.randn(self.n_acts) *self.act_noise, *self.noise_range)
         a_hat = torch.clamp(self.act_tg(s_p) + eps, *self.act_range)
 
-        y = r + self.gamma * torch.min(self.cri1_tg([s_p, a_hat]), self.cri2_tg([s_p, a_hat]))
+        y = r + self.gamma * torch.min(self.cri1_tg([s_p, a_hat]), self.cri2_tg([s_p, a_hat])) * d_mask
             
         cri1_loss = F.mse_loss(self.cri1([s, a]), y.detach())
         cri2_loss = F.mse_loss(self.cri2([s, a]), y.detach())
