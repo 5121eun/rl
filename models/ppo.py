@@ -7,8 +7,7 @@ from commons.basemodel import BaseModel
 
 class PPO(BaseModel):
     def __init__(self, env, n_acts: int, act: nn.Module, act_opt: torch.optim, 
-                 cri: nn.Module, cri_opt:torch.optim, 
-                 n_batchs=32, gamma = 0.98, gae=0.95, eps=0.2):
+                 cri: nn.Module, cri_opt:torch.optim, gamma = 0.98, gae=0.95, eps=0.2):
         super().__init__()
 
         self.env = env
@@ -19,15 +18,12 @@ class PPO(BaseModel):
         
         self.cri = cri
         self.cri_opt = cri_opt
-
-        self.n_batchs = n_batchs
         
         self.gamma = gamma
         self.gae = gae
         self.eps = eps
 
-        
-        
+
     def train(self, n_epis, n_rollout, print_interval=20):
         env = self.env
         score = 0.0
