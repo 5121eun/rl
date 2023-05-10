@@ -48,35 +48,42 @@ class SAC:
         else:
             self.target_entropy = target_entropy
                 
-    def train(self, n_epis, n_rollout, print_interval=20):
+    def train(self, n_epis, n_epochs, n_rollout, n_update=20, print_interval=20):
         env = self.env
         
-        score = 0.0
         for epi in range(n_epis):
             s = env.reset()[0]
+            done = False
+            score = 0.0
 
-            for t in range(n_rollout):
-                a = self.get_action(s)
-                s_p, r, _, _, _ = env.step(a)
-                self.buffer.put((s, a, r/100, s_p))
-                env.render()
+            for epoch in range(n_epochs):
+                for t in range(n_rollout):
+                    a = self.get_action(s)
+                    s_p, r, done, _, _ = env.step(a)
+                    d_mask = 0.0 if done else 1.0
+                    self.buffer.put((s, a, r/100, d_mask, s_p))
+                    env.render()
 
-                s = s_p
-                score += r
-                                        
-                if t > self.n_batchs:
+                    s = s_p
+                    score += r
+
+                    if done:
+                        break
+                                            
+                for t in range(n_update):
                     self.update()
-            if epi % print_interval == 0 and epi != 0:
-                print(f"epi: {epi}, score: {score / print_interval}, n_buffer: {self.buffer.size()}")
-                score = 0.0
+
+                if epoch % print_interval == 0 and epoch != 0:
+                    print(f"epoch: {epoch}, score: {score / print_interval}, n_buffer: {self.buffer.size()}")
+                    score = 0.0
             
     def update(self):
-        s, a, r, s_p = self.buffer.sample(self.n_batchs)
+        s, a, r, d_mask, s_p = self.buffer.sample(self.n_batchs)
         
         cur_a_p, cur_a_p_log_prob = self.act(s_p)
         entorpy = - self.log_alpha.exp() * cur_a_p_log_prob
         q_min = torch.min(self.qcri1_tg([s_p, cur_a_p]), self.qcri2_tg([s_p, cur_a_p]))
-        y = r + self.gamma * (q_min + entorpy) 
+        y = r + self.gamma * (q_min + entorpy) * d_mask
         
         qcri_ls1 = F.smooth_l1_loss(self.qcri1([s, a]), y.detach())
 
@@ -97,7 +104,7 @@ class SAC:
         act_ls.backward()
         self.act_opt.step()
 
-        log_alpha_ls = - (self.log_alpha.exp() * (cur_a_log_prob + self.target_entorpy).detach()).mean()
+        log_alpha_ls = - (self.log_alpha.exp() * (cur_a_log_prob + self.target_entropy).detach()).mean()
         self.log_alpha_opt.zero_grad()
         log_alpha_ls.backward()
         self.log_alpha_opt.step()
