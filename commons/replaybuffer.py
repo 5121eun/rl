@@ -15,7 +15,7 @@ class ReplayBuffer:
         return len(self.datas)
         
     def sample(self, n: int):
-        idx = np.random.randint(0, len(self.datas) - 1, n)
+        idx = np.random.randint(0, len(self.datas) - 1, min(len(self.datas), n))
 
         lst = [[] for i in range(len(self.datas[0]))]
         for i in idx:
