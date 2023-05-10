@@ -85,6 +85,7 @@ class SAC:
         q_min = torch.min(self.qcri1_tg([s_p, cur_a_p]), self.qcri2_tg([s_p, cur_a_p]))
         y = r + self.gamma * (q_min + entorpy) * d_mask
         
+        test=self.qcri1([s, a])
         qcri_ls1 = F.smooth_l1_loss(self.qcri1([s, a]), y.detach())
 
         self.qcri1_opt.zero_grad()
