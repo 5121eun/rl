@@ -32,27 +32,29 @@ class DDPG:
         self.act_noise = act_noise
         self.act_range = act_range
         
-    def train(self, n_epis, n_rollout):
+    def train(self, n_epis, n_epochs, n_rollout, n_update=10, print_interval=20):
         env = self.env
-        score = 0.0
 
         for epi in range(n_epis):
             s = env.reset()[0]
-            
-            for t in range(n_rollout):
-                a = self.get_action(s)
-                s_p, r, _, _, _ = env.step(a)
-                self.buffer.put((s, a, r/100, s_p))
-                env.render()
-                
-                s = s_p
-                score += r
-            
-                if self.buffer.size() > self.n_batchs:
-                    self.update()
-            
-            print(f"epi: {epi}, score: {score / n_rollout}, n_buffer: {self.buffer.size()}")
             score = 0.0
+            
+            for epoch in range(n_epochs):
+                for t in range(n_rollout):
+                    a = self.get_action(s)
+                    s_p, r, _, _, _ = env.step(a)
+                    self.buffer.put((s, a, r/100, s_p))
+                    env.render()
+                    
+                    s = s_p
+                    score += r
+                
+                for n in range(n_update):
+                    self.update()
+
+                if epoch % print_interval == 0 and epoch != 0:
+                    print(f"epoch: {epoch}, score: {score / print_interval}, n_buffer: {self.buffer.size()}")
+                    score = 0.0
 
     
     def get_action(self, s):
