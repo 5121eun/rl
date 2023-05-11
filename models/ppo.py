@@ -24,7 +24,7 @@ class PPO(BaseModel):
         self.eps = eps
 
 
-    def train(self, n_epis, n_rollout, print_interval=20):
+    def train(self, n_epis, n_rollout, n_update, print_interval=20):
         env = self.env
         score = 0.0
 
@@ -45,8 +45,13 @@ class PPO(BaseModel):
 
                     if done:
                         break
-            
-                self.update()
+                
+                n_batch = n_rollout//n_update
+                samples = self.sample()
+
+                for i in range(0, n_rollout, n_batch):
+                    sample = [s[i:i+n_batch] for s in samples]
+                    self.update(sample)
             
             if epi % print_interval == 0 and epi != 0:
                 print(f"epi: {epi}, score: {score / print_interval}")
@@ -58,8 +63,8 @@ class PPO(BaseModel):
         a = m.sample().item()
         return a, prob[a].item()
 
-    def update(self):
-        s, a, r, s_p, d_mask, a_prob = self.sample()
+    def update(self, sample):
+        s, a, r, s_p, d_mask, a_prob = sample
 
         td_target = r + self.gamma * self.cri(s_p) * d_mask
         advs = (td_target - self.cri(s)).view(-1)
