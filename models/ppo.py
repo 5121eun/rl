@@ -27,6 +27,7 @@ class PPO(BaseModel):
     def train(self, n_epis, n_rollout, n_update, print_interval=20):
         env = self.env
         score = 0.0
+        step = 0
 
         for epi in range(n_epis):
             done = False
@@ -42,6 +43,7 @@ class PPO(BaseModel):
 
                     s = s_p
                     score += r
+                    step += 1
 
                     if done:
                         break
@@ -54,7 +56,7 @@ class PPO(BaseModel):
                     self.update(sample)
             
             if epi % print_interval == 0 and epi != 0:
-                print(f"epi: {epi}, score: {score / print_interval}")
+                print(f"step: {step}, score: {score / print_interval}")
                 score = 0
 
     def get_action(self, s):

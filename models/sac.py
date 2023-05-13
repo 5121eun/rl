@@ -11,7 +11,7 @@ class SAC:
     def __init__(self, env, nactions: int, act: nn.Module, act_opt: torch.optim, 
                  qcri1: nn.Module, qcri1_opt:torch.optim, 
                  qcri2: nn.Module, qcri2_opt:torch.optim, 
-                 n_buffer=10000, n_batchs=32, gamma = 0.99, alpha = 0.1, eps = 0.3, tau = 5e-3, target_entropy=None):
+                 log_alpha_lr=0.001, n_buffer=10000, n_batchs=32, gamma = 0.99, alpha = 0.1, eps = 0.3, tau = 5e-3, target_entropy=None):
         
         self.env = env
         self.nactions = nactions
@@ -41,7 +41,7 @@ class SAC:
 
         self.log_alpha = torch.tensor(np.log(0.01))
         self.log_alpha.requires_grad = True
-        self.log_alpha_opt = torch.optim.Adam([self.log_alpha], lr=0.001)
+        self.log_alpha_opt = torch.optim.Adam([self.log_alpha], lr=log_alpha_lr)
         
         if target_entropy is None:
             self.target_entropy = - nactions
@@ -50,6 +50,7 @@ class SAC:
                 
     def train(self, n_epis, n_epochs, n_rollout, n_update=20, print_interval=20):
         env = self.env
+        step = 0
         
         for epi in range(n_epis):
             s = env.reset()[0]
@@ -66,7 +67,7 @@ class SAC:
 
                     s = s_p
                     score += r
-
+                    step += 1
                     if done:
                         break
                                             
@@ -74,7 +75,7 @@ class SAC:
                     self.update()
 
                 if epoch % print_interval == 0 and epoch != 0:
-                    print(f"epoch: {epoch}, score: {score / print_interval}, n_buffer: {self.buffer.size()}")
+                    print(f"step: {step}, score: {score / print_interval}, n_buffer: {self.buffer.size()}")
                     score = 0.0
             
     def update(self):
@@ -85,9 +86,7 @@ class SAC:
         q_min = torch.min(self.qcri1_tg([s_p, cur_a_p]), self.qcri2_tg([s_p, cur_a_p]))
         y = r + self.gamma * (q_min + entorpy) * d_mask
         
-        test=self.qcri1([s, a])
         qcri_ls1 = F.smooth_l1_loss(self.qcri1([s, a]), y.detach())
-
         self.qcri1_opt.zero_grad()
         qcri_ls1.backward()
         self.qcri1_opt.step()

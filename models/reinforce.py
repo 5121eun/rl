@@ -3,7 +3,7 @@ from torch import nn
 
 from torch.distributions import Categorical
 
-class Reinforcement:
+class reinforce:
     def __init__(self, env, n_acts: int, pi: nn.Module, pi_opt: torch.optim, 
                  n_batchs = 32, gamma = 0.98):
         super().__init__()
@@ -22,6 +22,7 @@ class Reinforcement:
     def train(self, n_epis, print_interval=20):
         env = self.env
         score = 0.0
+        step = 0
 
         for epi in range(n_epis):
             done = False
@@ -36,11 +37,12 @@ class Reinforcement:
 
                 s = s_p
                 score += r
+                step += 1
             
             self.update()
             
             if epi % print_interval == 0 and epi != 0:
-                print(f"epi: {epi}, score: {score / print_interval}")
+                print(f"step: {step}, score: {score / print_interval}")
                 score = 0
 
     def get_action(self, s):

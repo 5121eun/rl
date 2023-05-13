@@ -43,7 +43,8 @@ class TD3:
                 
     def train(self, n_epis, n_epochs, n_rollout, n_update=20, print_interval=20):
         env = self.env
-        
+        step = 0
+
         for epi in range(n_epis):
             s = env.reset()[0]
             done = False
@@ -59,6 +60,7 @@ class TD3:
                     
                     s = s_p
                     score += r
+                    step += 1
 
                     if done:
                         break
@@ -70,7 +72,7 @@ class TD3:
                         self.update_act()
             
                 if epoch % print_interval == 0 and epoch != 0:
-                    print(f"epoch: {epoch}, score: {score / print_interval}, n_buffer: {self.buffer.size()}")
+                    print(f"step: {step}, score: {score / print_interval}, n_buffer: {self.buffer.size()}")
                     score = 0.0
     
         

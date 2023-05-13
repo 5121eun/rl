@@ -9,8 +9,7 @@ from commons.basemodel import BaseModel
 
 class A2C(BaseModel):
     def __init__(self, env, n_acts: int, act: nn.Module, act_opt: torch.optim, 
-                 cri: nn.Module, cri_opt:torch.optim, 
-                 n_batchs = 32, gamma = 0.98):
+                 cri: nn.Module, cri_opt:torch.optim, gamma = 0.98):
         super().__init__()
         
         self.env = env
@@ -23,16 +22,16 @@ class A2C(BaseModel):
         self.cri_opt = cri_opt
                         
         self.gamma = gamma
-        self.n_batchs = n_batchs        
         
-    def train(self, n_epis, n_rollout=10, print_interval=20):
+    def train(self, n_epis, n_rollout, n_update, print_interval=20):
         env = self.env
         score = 0.0
+        step = 0
 
         for epi in range(n_epis):
             done = False
             s = env.reset()[0]
-            
+
             while not done:
                 for t in range(n_rollout):
                     a = self.get_action(s)
@@ -43,14 +42,20 @@ class A2C(BaseModel):
 
                     s = s_p
                     score += r
+                    step += 1
 
                     if done:
                         break
-            
-                self.update()
+
+                n_batch = n_rollout//n_update
+                samples = self.sample()
+
+                for i in range(0, n_rollout, n_batch):
+                    sample = [s[i:i+n_batch] for s in samples]
+                    self.update(sample)
             
             if epi % print_interval == 0 and epi != 0:
-                print(f"epi: {epi}, score: {score / print_interval}")
+                print(f"step: {step}, score: {score / print_interval}")
                 score = 0
 
     def get_action(self, s):
@@ -58,8 +63,8 @@ class A2C(BaseModel):
         m = Categorical(prob)
         return m.sample().item()
             
-    def update(self):
-        s, a, r, s_p, d_mask = self.sample()
+    def update(self, sample):
+        s, a, r, s_p, d_mask = sample
         
         td_target = r + self.gamma * self.cri(s_p) * d_mask
         adv = td_target - self.cri(s)
