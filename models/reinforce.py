@@ -3,7 +3,7 @@ from torch import nn
 
 from torch.distributions import Categorical
 
-class reinforce:
+class Reinforce:
     def __init__(self, env, n_acts: int, pi: nn.Module, pi_opt: torch.optim, 
                  n_batchs = 32, gamma = 0.98):
         super().__init__()
